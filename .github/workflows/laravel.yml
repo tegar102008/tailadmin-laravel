@@ -1,0 +1,48 @@
+name: Laravel application (Mysql)
+run-name: Build, Push and Deploy image simple social media
+on:
+  push:
+    branches:
+      - main
+env:
+  IMAGE_NAME: tegar102008/tailadmin-laravel:beta
+jobs:
+  build-push-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - name: Debug image name
+        run: echo "IMAGE_NAME = $IMAGE_NAME"
+      - name: Build Image
+        run: docker build -t $IMAGE_NAME .
+      - name: List Image
+        run: docker image ls
+      - name: Login to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          username: tegar102008
+          password: ${{ secrets.DOCKER_PASS }}
+      - name: Push Image
+        run: docker push $IMAGE_NAME
+
+  deploy-social-media:
+    needs: build-push-image
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v4
+    - name: Login to Docker Hub
+      run: echo "${{ secrets.DOCKER_PASS }}" | docker login -u tegar102008 --password-stdin
+    - name: Stop and remove existing container
+      run: |
+        docker-compose down 2>/dev/null || true
+        docker stop tailadmin-laravel 2>/dev/null || true
+        docker rm tailadmin-laravel 2>/dev/null || true
+    - name: Remove old images
+      run: docker system prune -f
+    - name: Pull images
+      run: docker-compose pull
+    - name: Start container
+      run: docker-compose up -d
+    - name: Check container status
+      run: docker ps
